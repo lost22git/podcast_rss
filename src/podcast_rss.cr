@@ -1,6 +1,18 @@
+require "log"
 require "http/client"
 require "xml"
 require "./podcast_rss/**"
+
+# Logging configuartion
+#
+Log.setup do |c|
+  console = Log::IOBackend.new
+  {% if flag?(:release) %}
+    c.bind "*", :info, console
+  {% else %}
+    c.bind "*", :debug, console
+  {% end %}
+end
 
 module PodcastRss
   def self.get_rss_xml(rss_link : String) : String
@@ -30,9 +42,8 @@ module PodcastRss
     if channel
       channel_sync_task = PodcastRss::ChannelSyncTask.new channel
       channel_sync_task.run
-      # TODO: Log successful message
     else
-      # TODO: Log failed message
+      Log.error { "channel not found, channel: #{channel_id}" }
     end
   end
 
