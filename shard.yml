@@ -1,0 +1,13 @@
+name: podcast_rss
+version: 0.1.0
+
+authors:
+  - lost22git <lost22git>
+
+targets:
+  podcast_rss:
+    main: src/podcast_rss.cr
+
+crystal: '>= 1.12.1'
+
+license: MIT
