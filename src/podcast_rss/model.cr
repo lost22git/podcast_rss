@@ -10,7 +10,9 @@ class PodcastRss::Channel
   def initialize
   end
 
-  def self.from_xml(reader : XML::Reader)
+  NEVER_STOP_PARSING = ->(channel : PodcastRss::Channel) { false }
+
+  def self.from_xml(reader : XML::Reader, need_stop_parsing : Proc(PodcastRss::Channel, Bool) = NEVER_STOP_PARSING)
     result = PodcastRss::Channel.new
     while true
       break unless reader.read
@@ -21,7 +23,9 @@ class PodcastRss::Channel
             {% begin %}
               case element_name
               when .=~ /^item$/i
-                into.items << PodcastRss::ChannelItem.from_xml(reader)
+                channel_item = PodcastRss::ChannelItem.from_xml(reader)
+                into.items << channel_item
+                break if need_stop_parsing.call(into)
 
               {% for p in %w{title description language itunes:author} %}
               when .=~ /^{{ p.id }}$/i

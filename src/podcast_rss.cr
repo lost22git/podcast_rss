@@ -14,9 +14,9 @@ module PodcastRss
     end
   end
 
-  def self.parse_channel(rss_xml : String | IO) : PodcastRss::Channel
+  def self.parse_channel(rss_xml : String | IO, need_stop_parsing : Proc(PodcastRss::Channel, Bool) = PodcastRss::Channel::NEVER_STOP_PARSING) : PodcastRss::Channel
     reader = XML::Reader.new rss_xml
-    PodcastRss::Channel.from_xml reader
+    PodcastRss::Channel.from_xml reader, need_stop_parsing
   end
 
   def self.add_rss(rss_link : String)
