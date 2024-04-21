@@ -11,3 +11,11 @@ targets:
 crystal: '>= 1.12.1'
 
 license: MIT
+
+dependencies:
+  db:
+    github: crystal-lang/crystal-db
+    version: ~> 0.12.0
+  duckdb:
+    github: amauryt/crystal-duckdb
+    version: ~> 0.2.2
