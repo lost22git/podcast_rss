@@ -48,12 +48,20 @@ module PodcastRss
   end
 
   def self.sync_all_channels
-    # TODO: parallelize
     channels = PodcastRss::Repo.get_channels
+    return unless channels.size > 0
+    waiter = ::Channel(Nil).new
     channels.each do |channel|
-      channel_sync_task = PodcastRss::ChannelSyncTask.new channel
-      channel_sync_task.run
+      spawn do
+        begin
+          channel_sync_task = PodcastRss::ChannelSyncTask.new channel
+          channel_sync_task.run
+        ensure
+          waiter.send nil
+        end
+      end
     end
+    (1..channels.size).each { |i| waiter.receive }
   end
 
   def self.get_channels : Array(PodcastRss::Channel)
