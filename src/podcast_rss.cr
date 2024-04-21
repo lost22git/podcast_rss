@@ -5,12 +5,12 @@ require "./podcast_rss/**"
 
 # Logging configuartion
 #
-Log.setup do |c|
+Log.setup do |config|
   console = Log::IOBackend.new
   {% if flag?(:release) %}
-    c.bind "*", :info, console
+    config.bind "*", :info, console
   {% else %}
-    c.bind "*", :debug, console
+    config.bind "*", :debug, console
   {% end %}
 end
 
