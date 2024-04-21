@@ -141,7 +141,7 @@ module PodcastRss
   def self.read_inner_text(reader : XML::Reader) : String
     result = String::Builder.new ""
     while true
-      return "" unless reader.read
+      break unless reader.read
       node_type = reader.node_type
       break unless node_type.cdata? || node_type.text?
       result << reader.value
