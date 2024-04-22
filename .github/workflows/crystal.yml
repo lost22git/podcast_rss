@@ -57,8 +57,7 @@ jobs:
             sudo update_dyld_shared_cache
           elif [ "$RUNNER_OS" == "Windows" ]; then
             curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-windows-amd64.zip
-            unzip libduckdb.zip -d /c/Windows/System32
-            ls /c/Windows/System32 | grep duckdb
+            unzip libduckdb.zip -d libduckdb-windows-amd64
           else
               echo "$RUNNER_OS not supported"
               exit 1
@@ -73,4 +72,10 @@ jobs:
       - name: Install dependencies
         run: shards install
       - name: Run tests
+        if: runners.os != 'Windows'
         run: crystal spec --verbose --progress --time --stats
+      - name: Run tests
+        if: runners.os == 'Windows'
+        run: |
+          $env:Path="$(pwd)\libduckdb-windows-amd64;$env:Path"
+          crystal spec --link-flags "/LIBPATH:$(pwd)\libduckdb-windows-amd64" --verbose --progress --time --stats
