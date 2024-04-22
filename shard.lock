@@ -1,9 +1,5 @@
 version: 2.0
 shards:
-  ameba:
-    git: https://github.com/crystal-ameba/ameba.git
-    version: 1.6.1
-
   db:
     git: https://github.com/crystal-lang/crystal-db.git
     version: 0.12.0
@@ -11,4 +7,8 @@ shards:
   duckdb:
     git: https://github.com/amauryt/crystal-duckdb.git
     version: 0.2.4
+
+  snowflake:
+    git: https://github.com/mamantoha/snowflake.git
+    version: 0.1.0
 

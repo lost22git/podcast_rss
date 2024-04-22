@@ -6,7 +6,7 @@ authors:
 
 targets:
   podcast_rss:
-    main: src/podcast_rss_main.cr
+    main: src/main.cr
 
 crystal: '>= 1.12.1'
 
@@ -23,3 +23,5 @@ dependencies:
   duckdb:
     github: amauryt/crystal-duckdb
     version: ~> 0.2.2
+  snowflake:
+    github: mamantoha/snowflake

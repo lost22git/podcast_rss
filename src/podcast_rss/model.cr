@@ -1,9 +1,13 @@
 require "xml"
 
+alias ID = String
+
 class PodcastRss::Channel
   {% for p in %w{rss author title description language image} %}
     property {{ p.id }} : String = ""
-    {% end %}
+  {% end %}
+
+  property id : ID = ""
 
   property items : Array(ChannelItem) = [] of ChannelItem
 
@@ -13,24 +17,24 @@ class PodcastRss::Channel
   NEVER_STOP_PARSING = ->(channel : PodcastRss::Channel) { false }
 
   def self.from_xml(reader : XML::Reader, need_stop_parsing : Proc(PodcastRss::Channel, Bool) = NEVER_STOP_PARSING)
-    result = PodcastRss::Channel.new
+    result = Channel.new
     while true
       break unless reader.read
       case reader.node_type
       when .element?
         if reader.name =~ /^channel$/i
-          PodcastRss::XmlTool.parse_element reader, "channel", result do |reader, element_name, into|
+          XmlTool.parse_element reader, "channel", result do |reader, element_name, into|
             {% begin %}
               case element_name
               when .=~ /^item$/i
-                channel_item = PodcastRss::ChannelItem.from_xml(reader)
+                channel_item = ChannelItem.from_xml(reader)
                 into.items << channel_item
                 break if need_stop_parsing.call(into)
 
               {% for p in %w{title description language itunes:author} %}
               when .=~ /^{{ p.id }}$/i
                 {% id = p.split(":").last.id %}
-                {{ id }} = PodcastRss::XmlTool.read_inner_text reader
+                {{ id }} = XmlTool.read_inner_text reader
                 into.{{ id }} = {{ id }}
               {% end %}
 
@@ -52,6 +56,7 @@ class PodcastRss::Channel
 
   def print
     puts "-" * 88
+    puts "id".ljust(10) + " : " + self.id.to_s
     puts "channel".ljust(10) + " : " + self.title
     puts "author".ljust(10) + " : " + self.author
     puts "episodes".ljust(10) + " : " + self.items.size.to_s
@@ -66,22 +71,25 @@ class PodcastRss::Channel
 end
 
 class PodcastRss::ChannelItem
-  {% for p in %w{title subtittle description image pubDate duration url type length} %}
+  {% for p in %w{title subtitle description image pubDate duration url type length} %}
     property {{ p.id }} : String = ""
   {% end %}
+
+  property id : ID = ""
+  property channel_id : ID = ""
 
   def initialize
   end
 
   def self.from_xml(reader : XML::Reader)
-    result = PodcastRss::ChannelItem.new
-    PodcastRss::XmlTool.parse_element reader, "item", result do |reader, element_name, into|
+    result = ChannelItem.new
+    XmlTool.parse_element reader, "item", result do |reader, element_name, into|
       {% begin %}
         case element_name
-        {% for p in %w{title description pubDate itunes:subtittle itunes:duration} %}
+        {% for p in %w{title description pubDate itunes:subtitle itunes:duration} %}
         when .=~ /^{{ p.id }}$/i
           {% id = p.split(":").last.id %}
-          {{ id }} = PodcastRss::XmlTool.read_inner_text reader
+          {{ id }} = XmlTool.read_inner_text reader
           into.{{ id }} = {{ id }}
         {% end %}
 
