@@ -78,4 +78,5 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           $env:Path="$(pwd)\libduckdb-windows-amd64;$env:Path"
+          echo $env:Path
           crystal spec --link-flags "/LIBPATH:$(pwd)\libduckdb-windows-amd64" --verbose --progress --time --stats
