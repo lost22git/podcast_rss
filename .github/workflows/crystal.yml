@@ -45,18 +45,23 @@ jobs:
     steps:
       - name: Install libduckdb
         run: |
-         if [ "$RUNNER_OS" != "Windows" ]; then
+          if [ "$RUNNER_OS" == "Linux" ]; then
             sudo curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-linux-amd64.zip 
             sudo chmod +x libduckdb.zip
             sudo unzip libduckdb.zip -d /usr/local/lib
             sudo ldconfig
-         elif [ "$RUNNER_OS" == "Windows" ]; then
-            curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-windows-amd64.zip
-            unzip libduckdb.zip -d libduckdb-windows-amd64
-         else
+          elif [ "$RUNNER_OS" -= "macOS" ]; then
+            sudo curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-osx-universal.zip 
+            sudo chmod +x libduckdb.zip
+            sudo unzip libduckdb.zip -d /usr/local/lib
+            sudo update_dyld_shared_cache
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            sudo curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-windows-amd64.zip
+            sudo unzip libduckdb.zip -d /c/Windows/System32
+          else
               echo "$RUNNER_OS not supported"
               exit 1
-         fi
+          fi
         shell: bash
 
       - name: Install Crystal
