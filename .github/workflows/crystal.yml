@@ -43,6 +43,23 @@ jobs:
           - {os: windows-latest}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Install libduckdb
+        run: |
+         if [ "$RUNNER_OS" != "Linux" ]; then
+            wget https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-linux-amd64.zip 
+            unzip libduckdb-linux-amd64.zip -d /usr/local/lib
+         elif [ "$RUNNER_OS" != "MacOS" ]; then
+            wget https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-linux-amd64.zip 
+            unzip libduckdb-linux-amd64.zip -d /usr/local/lib
+         elif [ "$RUNNER_OS" == "Windows" ]; then
+            wget https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-windows-amd64.zip
+            unzip libduckdb-windows-amd64.zip -d libduckdb-windows-amd64
+         else
+              echo "$RUNNER_OS not supported"
+              exit 1
+         fi
+        shell: bash
+
       - name: Install Crystal
         uses: crystal-lang/install-crystal@v1
         with:
@@ -52,4 +69,4 @@ jobs:
       - name: Install dependencies
         run: shards install
       - name: Run tests
-        run: crystal spec
+        run: crystal spec --verbose --progress --time --stats
