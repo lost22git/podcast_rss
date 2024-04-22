@@ -43,6 +43,14 @@ jobs:
           - {os: windows-latest}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+        with:
+          crystal: ${{ matrix.crystal }}
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: shards install
       - name: Install libduckdb
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
@@ -63,14 +71,6 @@ jobs:
               exit 1
           fi
         shell: bash
-      - name: Install Crystal
-        uses: crystal-lang/install-crystal@v1
-        with:
-          crystal: ${{ matrix.crystal }}
-      - name: Check out repository code
-        uses: actions/checkout@v4
-      - name: Install dependencies
-        run: shards install
       - name: Run tests
         if: runner.os != 'Windows'
         run: crystal spec --verbose --progress --time --stats
@@ -78,5 +78,4 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           $env:Path="$(pwd)\libduckdb-windows-amd64;$env:Path"
-          echo $env:Path
           crystal spec --link-flags "/LIBPATH:$(pwd)\libduckdb-windows-amd64" --verbose --progress --time --stats
