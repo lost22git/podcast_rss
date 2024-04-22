@@ -72,10 +72,10 @@ jobs:
       - name: Install dependencies
         run: shards install
       - name: Run tests
-        if: runners.os != 'Windows'
+        if: runner.os != 'Windows'
         run: crystal spec --verbose --progress --time --stats
       - name: Run tests
-        if: runners.os == 'Windows'
+        if: runner.os == 'Windows'
         run: |
           $env:Path="$(pwd)\libduckdb-windows-amd64;$env:Path"
           crystal spec --link-flags "/LIBPATH:$(pwd)\libduckdb-windows-amd64" --verbose --progress --time --stats
