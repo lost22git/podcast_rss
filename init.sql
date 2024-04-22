@@ -25,4 +25,3 @@ CREATE TABLE channel_item (
 	"length" VARCHAR,
 	CONSTRAINT CHANNEL_ITEM_PK PRIMARY KEY (id)
 );
-

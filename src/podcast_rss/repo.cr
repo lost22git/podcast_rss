@@ -9,13 +9,13 @@ module PodcastRss::Repo
     end
   end
 
-  STATIC_INIT_SQL = {{ read_file("#{__DIR__}/../../init.sql") }}
-
   ID_GENERATOR = Snowflake.new(1_u64)
 
   private def self.gen_id : ID
     ID_GENERATOR.generate_id.to_s
   end
+
+  STATIC_INIT_SQL = {{ read_file("#{__DIR__}/../../init.sql") }}
 
   private def self.load_init_sql : String
     # load order
@@ -35,7 +35,7 @@ module PodcastRss::Repo
     Log.debug { "init_sql:\n#{init_sql}" }
 
     self.connect do |cnn|
-      # can not exec multi sqls, so we split them
+      # can not exec sql scripts, so we split them
       init_sql.split(';', remove_empty: true) do |sql|
         cnn.exec sql unless sql.blank?
       end
@@ -46,9 +46,10 @@ module PodcastRss::Repo
     self.connect do |cnn|
       # TODO: RETURNING  id ?
       insert_sql = "
-      insert into channel
-      (id, rss, author, title, description, language, image)
-      values (?,?,?,?,?,?,?)
+      INSERT INTO channel
+        (id, rss, author, title, description, language, image)
+      VALUES
+        (?,?,?,?,?,?,?)
       "
       insert_args = [
         self.gen_id,
@@ -66,9 +67,11 @@ module PodcastRss::Repo
   def self.update_channel(channel_id : ID, channel : PodcastRss::Channel)
     self.connect do |cnn|
       update_sql = "
-      update channel
-      set rss = ?, title = ?, description = ?, author = ?, language = ?, image = ?
-      where id = ?
+      UPDATE channel
+      SET
+        rss = ?, title = ?, description = ?, author = ?, language = ?, image = ?
+      WHERE
+        id = ?
       "
       update_args = [
         channel.rss,
@@ -87,21 +90,13 @@ module PodcastRss::Repo
     result = nil
     self.connect do |cnn|
       select_sql = "
-      select id,rss,author,title,description,language,image
-      from channel
-      where id=?
+      SELECT
+        id,rss,author,title,description,language,image
+      FROM channel
+      WHERE
+        id=?
       "
-      result = cnn.query_one? select_sql, channel_id do |rs|
-        channel = Channel.new
-        channel.id = rs.read(ID)
-        channel.rss = rs.read(String)
-        channel.author = rs.read(String)
-        channel.title = rs.read(String)
-        channel.description = rs.read(String)
-        channel.language = rs.read(String)
-        channel.image = rs.read(String)
-        channel
-      end
+      result = cnn.query_one?(select_sql, channel_id) { |rs| Channel.new rs }
     end
     result
   end
@@ -110,19 +105,11 @@ module PodcastRss::Repo
     result = [] of Channel
     self.connect do |cnn|
       select_sql = "
-      select id,rss,title,description,author,language,image from channel
+      SELECT
+        id,rss,title,description,author,language,image
+      FROM channel
       "
-      result = cnn.query_all select_sql do |rs|
-        channel = Channel.new
-        channel.id = rs.read(ID)
-        channel.rss = rs.read(String)
-        channel.title = rs.read(String)
-        channel.description = rs.read(String)
-        channel.author = rs.read(String)
-        channel.language = rs.read(String)
-        channel.image = rs.read(String)
-        channel
-      end
+      result = cnn.query_all(select_sql) { |rs| Channel.new rs }
     end
     result
   end
@@ -131,21 +118,13 @@ module PodcastRss::Repo
     result = [] of Channel
     self.connect do |cnn|
       select_sql = "
-      select id,rss,title,description,author,language,image
-      from channel
-      where author like ? or title like ? or description like ?
+      SELECT
+        id,rss,title,description,author,language,image
+      FROM channel
+      WHERE
+        author LIKE ? or title LIKE ? or description LIKE ?
       "
-      result = cnn.query_all select_sql, "%#{q}%", "%#{q}%", "%#{q}%" do |rs|
-        channel = Channel.new
-        channel.id = rs.read(ID)
-        channel.rss = rs.read(String)
-        channel.title = rs.read(String)
-        channel.description = rs.read(String)
-        channel.author = rs.read(String)
-        channel.language = rs.read(String)
-        channel.image = rs.read(String)
-        channel
-      end
+      result = cnn.query_all(select_sql, "%#{q}%", "%#{q}%", "%#{q}%") { |rs| Channel.new rs }
     end
     result
   end
@@ -176,24 +155,15 @@ module PodcastRss::Repo
     result = nil
     self.connect do |cnn|
       select_sql = "
-      select id,channel_id,title,subtitle,description,image,duration,url,type,length
-      from channel_item
-      where channel_id = ? order by id desc limit 1
+      SELECT
+        id,channel_id,title,subtitle,description,image,duration,url,type,length
+      FROM channel_item
+      WHERE
+        channel_id = ?
+      ORDER BY id DESC
+      LIMIT 1
       "
-      result = cnn.query_one? select_sql, channel_id do |rs|
-        channel_item = ChannelItem.new
-        channel_item.id = rs.read(ID)
-        channel_item.channel_id = rs.read(ID)
-        channel_item.title = rs.read(String)
-        channel_item.subtitle = rs.read(String)
-        channel_item.description = rs.read(String)
-        channel_item.image = rs.read(String)
-        channel_item.duration = rs.read(String)
-        channel_item.url = rs.read(String)
-        channel_item.type = rs.read(String)
-        channel_item.length = rs.read(String)
-        channel_item
-      end
+      result = cnn.query_one?(select_sql, channel_id) { |rs| ChannelItem.new rs }
     end
     result
   end
@@ -202,25 +172,15 @@ module PodcastRss::Repo
     result = [] of ChannelItem
     self.connect do |cnn|
       select_sql = "
-      select id,channel_id,title,subtitle,description,image,duration,url,type,length
-      from channel_item
-      where channel_id = ?
-      order by id desc limit ?
+      SELECT
+        id,channel_id,title,subtitle,description,image,duration,url,type,length
+      FROM channel_item
+      WHERE
+        channel_id = ?
+      ORDER BY id DESC
+      LIMIT ?
       "
-      result = cnn.query_all select_sql, channel_id, size do |rs|
-        channel_item = ChannelItem.new
-        channel_item.id = rs.read(ID)
-        channel_item.channel_id = rs.read(ID)
-        channel_item.title = rs.read(String)
-        channel_item.subtitle = rs.read(String)
-        channel_item.description = rs.read(String)
-        channel_item.image = rs.read(String)
-        channel_item.duration = rs.read(String)
-        channel_item.url = rs.read(String)
-        channel_item.type = rs.read(String)
-        channel_item.length = rs.read(String)
-        channel_item
-      end
+      result = cnn.query_all(select_sql, channel_id, size) { |rs| ChannelItem.new rs }
     end
     result
   end

@@ -1,14 +1,19 @@
 require "xml"
 
+require "db"
+
 alias ID = String
 
 class PodcastRss::Channel
+  include DB::Serializable
+
   {% for p in %w{rss author title description language image} %}
     property {{ p.id }} : String = ""
   {% end %}
 
   property id : ID = ""
 
+  @[DB::Field(ignore: true)]
   property items : Array(ChannelItem) = [] of ChannelItem
 
   def initialize
@@ -71,6 +76,8 @@ class PodcastRss::Channel
 end
 
 class PodcastRss::ChannelItem
+  include DB::Serializable
+
   {% for p in %w{title subtitle description image pubDate duration url type length} %}
     property {{ p.id }} : String = ""
   {% end %}
