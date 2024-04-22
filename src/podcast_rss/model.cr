@@ -58,7 +58,7 @@ class PodcastRss::Channel
     puts "-" * 88
     (0..5).each do |i|
       item = self.items[i]
-      puts "title".rjust(15) + " : " + osc8_hyperlink(item.title, item.audio.url)
+      puts "title".rjust(15) + " : " + osc8_hyperlink(item.title, item.url)
       puts "pubDate".rjust(15) + " : " + item.pubDate
       puts "duration".rjust(15) + " : " + item.duration
     end
@@ -66,11 +66,9 @@ class PodcastRss::Channel
 end
 
 class PodcastRss::ChannelItem
-  {% for p in %w{title subtittle description image pubDate duration} %}
+  {% for p in %w{title subtittle description image pubDate duration url type length} %}
     property {{ p.id }} : String = ""
-    {% end %}
-
-  property audio : ChannelAudio = ChannelAudio.new
+  {% end %}
 
   def initialize
   end
@@ -94,20 +92,11 @@ class PodcastRss::ChannelItem
         when .=~ /^enclosure$/i
           {% for p in %w{url type length} %}
           {{ p.id }} = reader[{{ p }}]? || ""
-          into.audio.{{ p.id }} = {{ p.id }}
+          into.{{ p.id }} = {{ p.id }}
           {% end %}
         end
         {% end %}
     end
     result
-  end
-end
-
-class PodcastRss::ChannelAudio
-  {% for p in %w{url type length} %}
-    property {{ p.id }} : String = ""
-    {% end %}
-
-  def initialize
   end
 end
