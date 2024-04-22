@@ -58,6 +58,7 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
             curl -fsSL -o libduckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.10.2/libduckdb-windows-amd64.zip
             unzip libduckdb.zip -d /c/Windows/System32
+            ls /c/Windows/System32 | grep duckdb
           else
               echo "$RUNNER_OS not supported"
               exit 1
