@@ -62,6 +62,17 @@ module PodcastRss::Repo
     end
   end
 
+  def self.delete_channel(channel_id : ID)
+    self.connect do |cnn|
+      delete_sql = "
+      DELETE FROM channel
+      WHERE
+        id = ?
+      "
+      cnn.exec delete_sql, channel_id
+    end
+  end
+
   def self.update_channel(channel_id : ID, channel : PodcastRss::Channel)
     self.connect do |cnn|
       update_sql = "
@@ -95,6 +106,21 @@ module PodcastRss::Repo
         id=?
       "
       result = cnn.query_one?(select_sql, channel_id) { |rs| Channel.new rs }
+    end
+    result
+  end
+
+  def self.get_channels_by_rss(rss : String) : Array(PodcastRss::Channel)
+    result = [] of Channel
+    self.connect do |cnn|
+      select_sql = "
+      SELECT
+        id,rss,author,title,description,language,image
+      FROM channel
+      WHERE
+        rss=?
+      "
+      result = cnn.query_all(select_sql, rss) { |rs| Channel.new rs }
     end
     result
   end
@@ -147,6 +173,17 @@ module PodcastRss::Repo
           end
         end
       end
+    end
+  end
+
+  def self.delete_channel_item_by_channel_id(channel_id : ID)
+    self.connect do |cnn|
+      delete_sql = "
+      DELETE FROM channel_item
+      WHERE
+        channel_id = ?
+      "
+      cnn.exec delete_sql, channel_id
     end
   end
 

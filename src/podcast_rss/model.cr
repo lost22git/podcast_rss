@@ -66,8 +66,7 @@ class PodcastRss::Channel
     puts "author".ljust(10) + " : " + self.author
     puts "episodes".ljust(10) + " : " + self.items.size.to_s
     puts "-" * 88
-    (0..5).each do |i|
-      item = self.items[i]
+    self.items.each do |item|
       puts "title".rjust(15) + " : " + osc8_hyperlink(item.title, item.url)
       puts "pub_date".rjust(15) + " : " + item.pub_date
       puts "duration".rjust(15) + " : " + item.duration

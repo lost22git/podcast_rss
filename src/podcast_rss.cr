@@ -15,13 +15,13 @@ Log.setup do |config|
 end
 
 module PodcastRss
-  def self.get_rss_xml(rss_link : String) : String
-    resp = HTTP::Client.get rss_link
+  def self.get_rss_xml(rss : String) : String
+    resp = HTTP::Client.get rss
     resp.body
   end
 
-  def self.get_rss_xml_io(rss_link : String, & : IO ->)
-    HTTP::Client.get rss_link do |resp|
+  def self.get_rss_xml_io(rss : String, & : IO ->)
+    HTTP::Client.get rss do |resp|
       yield resp.body_io
     end
   end
@@ -31,10 +31,21 @@ module PodcastRss
     Channel.from_xml reader, need_stop_parsing
   end
 
-  def self.add_rss(rss_link : String)
+  def self.add_rss(rss : String)
+    unless Repo.get_channels_by_rss(rss.strip).empty?
+      Log.error { "channel exists" }
+      return
+    end
     channel = Channel.new
-    channel.rss = rss_link
+    channel.rss = rss.strip
     Repo.add_channel channel
+    Log.info { "a channel added" }
+  end
+
+  def self.delete_channel(channel_id : ID)
+    Repo.delete_channel_item_by_channel_id channel_id
+    Repo.delete_channel channel_id
+    Log.info { "a channel deleted" }
   end
 
   def self.sync_channel(channel_id : ID)
