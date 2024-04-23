@@ -51,17 +51,19 @@ module PodcastRss
     channels = Repo.get_channels
     return unless channels.size > 0
     waiter = ::Channel(Nil).new
-    channels.each do |channel|
-      spawn do
-        begin
-          channel_sync_task = ChannelSyncTask.new channel
-          channel_sync_task.run
-        ensure
-          waiter.send nil
-        end
+    channels.each { |channel| self.spawn_sync_channel channel, waiter }
+    (1..channels.size).each { |i| waiter.receive }
+  end
+
+  private def self.spawn_sync_channel(channel : PodcastRss::Channel, waiter : ::Channel(Nil))
+    spawn do
+      begin
+        channel_sync_task = ChannelSyncTask.new channel
+        channel_sync_task.run
+      ensure
+        waiter.send nil
       end
     end
-    (1..channels.size).each { |i| waiter.receive }
   end
 
   def self.get_channels : Array(PodcastRss::Channel)

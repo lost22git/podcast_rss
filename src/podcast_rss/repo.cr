@@ -140,6 +140,7 @@ module PodcastRss::Repo
             row << item.title
             row << item.subtitle
             row << item.description
+            row << item.pub_date
             row << item.image
             row << item.duration
             row << item.url
@@ -156,7 +157,7 @@ module PodcastRss::Repo
     self.connect do |cnn|
       select_sql = "
       SELECT
-        id,channel_id,title,subtitle,description,image,duration,url,type,length
+        id,channel_id,title,subtitle,description,pub_date,image,duration,url,type,length
       FROM channel_item
       WHERE
         channel_id = ?
@@ -173,7 +174,7 @@ module PodcastRss::Repo
     self.connect do |cnn|
       select_sql = "
       SELECT
-        id,channel_id,title,subtitle,description,image,duration,url,type,length
+        id,channel_id,title,subtitle,description,pub_date,image,duration,url,type,length
       FROM channel_item
       WHERE
         channel_id = ?

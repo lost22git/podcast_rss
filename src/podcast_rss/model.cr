@@ -62,14 +62,14 @@ class PodcastRss::Channel
   def print
     puts "-" * 88
     puts "id".ljust(10) + " : " + self.id.to_s
-    puts "channel".ljust(10) + " : " + self.title
+    puts "channel".ljust(10) + " : " + osc8_hyperlink(self.title, self.rss)
     puts "author".ljust(10) + " : " + self.author
     puts "episodes".ljust(10) + " : " + self.items.size.to_s
     puts "-" * 88
     (0..5).each do |i|
       item = self.items[i]
       puts "title".rjust(15) + " : " + osc8_hyperlink(item.title, item.url)
-      puts "pubDate".rjust(15) + " : " + item.pubDate
+      puts "pub_date".rjust(15) + " : " + item.pub_date
       puts "duration".rjust(15) + " : " + item.duration
     end
   end
@@ -78,7 +78,7 @@ end
 class PodcastRss::ChannelItem
   include DB::Serializable
 
-  {% for p in %w{title subtitle description image pubDate duration url type length} %}
+  {% for p in %w{title subtitle description image pub_date duration url type length} %}
     property {{ p.id }} : String = ""
   {% end %}
 
@@ -95,7 +95,7 @@ class PodcastRss::ChannelItem
         case element_name
         {% for p in %w{title description pubDate itunes:subtitle itunes:duration} %}
         when .=~ /^{{ p.id }}$/i
-          {% id = p.split(":").last.id %}
+          {% id = p.split(":").last.underscore.id %}
           {{ id }} = XmlTool.read_inner_text reader
           into.{{ id }} = {{ id }}
         {% end %}
