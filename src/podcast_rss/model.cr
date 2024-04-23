@@ -37,17 +37,17 @@ class PodcastRss::Channel
                 break if need_stop_parsing.call(into)
 
               {% for p in %w{title description language itunes:author} %}
-              when .=~ /^{{ p.id }}$/i
-                {% id = p.split(":").last.id %}
-                {{ id }} = XmlTool.read_inner_text reader
-                into.{{ id }} = {{ id }}
+                when .=~ /^{{ p.id }}$/i
+                  {% id = p.split(":").last.id %}
+                  {{ id }} = XmlTool.read_inner_text reader
+                  into.{{ id }} = {{ id }}
               {% end %}
 
               when .=~ /^itunes:image$/i
                 image = reader["href"] || ""
                 into.image = image
               end
-              {% end %}
+            {% end %}
           end
         end
       end
@@ -94,10 +94,10 @@ class PodcastRss::ChannelItem
       {% begin %}
         case element_name
         {% for p in %w{title description pubDate itunes:subtitle itunes:duration} %}
-        when .=~ /^{{ p.id }}$/i
-          {% id = p.split(":").last.underscore.id %}
-          {{ id }} = XmlTool.read_inner_text reader
-          into.{{ id }} = {{ id }}
+          when .=~ /^{{ p.id }}$/i
+            {% id = p.split(":").last.underscore.id %}
+            {{ id }} = XmlTool.read_inner_text reader
+            into.{{ id }} = {{ id }}
         {% end %}
 
         when .=~ /^itunes:image$/i
@@ -106,11 +106,11 @@ class PodcastRss::ChannelItem
 
         when .=~ /^enclosure$/i
           {% for p in %w{url type length} %}
-          {{ p.id }} = reader[{{ p }}]? || ""
-          into.{{ p.id }} = {{ p.id }}
+            {{ p.id }} = reader[{{ p }}]? || ""
+            into.{{ p.id }} = {{ p.id }}
           {% end %}
         end
-        {% end %}
+      {% end %}
     end
     result
   end

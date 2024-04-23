@@ -36,9 +36,7 @@ module PodcastRss::Repo
 
     self.connect do |cnn|
       # can not exec sql scripts, so we split them
-      init_sql.split(';', remove_empty: true) do |sql|
-        cnn.exec sql unless sql.blank?
-      end
+      init_sql.split(';', remove_empty: true) { |sql| cnn.exec sql unless sql.blank? }
     end
   end
 
