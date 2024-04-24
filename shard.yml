@@ -6,7 +6,9 @@ authors:
 
 targets:
   podcast_rss:
-    main: src/main.cr
+    main: src/main_cli.cr
+  podcast_rss_shell:
+    main: src/main_shell.cr
 
 crystal: '>= 1.12.1'
 
@@ -25,3 +27,6 @@ dependencies:
     version: ~> 0.2.2
   snowflake:
     github: mamantoha/snowflake
+  fancyline:
+    github: Papierkorb/fancyline
+    version: ~> 0.4.1

@@ -6,7 +6,7 @@ require "./podcast_rss/**"
 # Logging configuartion
 #
 Log.setup do |config|
-  console = Log::IOBackend.new
+  console = Log::IOBackend.new dispatcher: Log::DispatchMode::Sync
   {% if flag?(:release) %}
     config.bind "*", :info, console
   {% else %}

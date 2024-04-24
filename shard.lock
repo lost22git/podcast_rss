@@ -1,5 +1,9 @@
 version: 2.0
 shards:
+  cute:
+    git: https://github.com/papierkorb/cute.git
+    version: 0.4.0
+
   db:
     git: https://github.com/crystal-lang/crystal-db.git
     version: 0.12.0
@@ -7,6 +11,14 @@ shards:
   duckdb:
     git: https://github.com/amauryt/crystal-duckdb.git
     version: 0.2.4
+
+  fancyline:
+    git: https://github.com/papierkorb/fancyline.git
+    version: 0.4.1
+
+  future:
+    git: https://github.com/crystal-community/future.cr.git
+    version: 1.0.0
 
   snowflake:
     git: https://github.com/mamantoha/snowflake.git

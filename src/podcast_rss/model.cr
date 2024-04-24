@@ -62,7 +62,11 @@ class PodcastRss::Channel
   def print
     puts "-" * 88
     puts "id".ljust(10) + " : " + self.id.to_s
-    puts "channel".ljust(10) + " : " + osc8_hyperlink(self.title, self.rss)
+    if self.title.blank?
+      puts "rss".ljust(10) + " : " + self.rss
+    else
+      puts "channel".ljust(10) + " : " + osc8_hyperlink(self.title, self.rss)
+    end
     puts "author".ljust(10) + " : " + self.author
     puts "episodes".ljust(10) + " : " + self.items.size.to_s
     puts "-" * 88
