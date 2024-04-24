@@ -23,14 +23,14 @@ command_parser = PodcastRss::CommandParser.new
 
 begin
   while input = fancy.readline("podcast_rss> ")
-    command_argv = ["podcast_rss"] + input.split(' ', remove_empty: true)
-    command = command_parser.parse command_argv
+    cmdline_argv = ["podcast_rss"] + input.split(' ', remove_empty: true)
+    command = command_parser.parse cmdline_argv
     if cmd = command
       cmd.run
     else
       command_parser.print_help_string
     end
   end
-rescue err : Fancyline::Interrupt
+rescue e : Fancyline::Interrupt
   puts "Bye."
 end
