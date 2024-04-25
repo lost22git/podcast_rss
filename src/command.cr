@@ -59,8 +59,8 @@ class PodcastRss::ShellCommand < PodcastRss::Command
 
   def run
     shell_path = Process.executable_path.try { |p| Path.new(p).parent / "podcast_rss_shell" }
-    if cmd = shell_path
-      Process.exec cmd.to_s if File.exists?(cmd)
+    if shell_path && File.exists? shell_path
+      Process.exec shell_path.to_s
     else
       Process.exec "podcast_rss_shell"
     end

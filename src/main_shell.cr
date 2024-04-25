@@ -25,8 +25,8 @@ begin
   while input = fancy.readline("podcast_rss> ")
     cmdline_argv = ["podcast_rss"] + input.split(' ', remove_empty: true)
     command = command_parser.parse cmdline_argv
-    if cmd = command
-      cmd.run
+    if command
+      command.run
     else
       command_parser.print_help_string
     end

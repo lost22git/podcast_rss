@@ -11,8 +11,8 @@ require "./command"
 command_parser = PodcastRss::CommandParser.new
 command = command_parser.parse
 
-if c = command
-  c.run
+if command
+  command.run
 else
   command_parser.print_help_string
 end
