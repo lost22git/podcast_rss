@@ -11,11 +11,6 @@
   require "digest/crc32"
 {% end %}
 
-alias B12 = StaticArray(UInt8, 12)
-alias B4 = StaticArray(UInt8, 4)
-alias B3 = StaticArray(UInt8, 3)
-alias B2 = StaticArray(UInt8, 2)
-
 BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
 
 BASE32_DEC = begin
@@ -36,9 +31,14 @@ BASE32_DEC = begin
   a
 end
 
+alias B12 = StaticArray(UInt8, 12)
+alias B4 = StaticArray(UInt8, 4)
+alias B3 = StaticArray(UInt8, 3)
+alias B2 = StaticArray(UInt8, 2)
+
 @[Packed]
 record PodcastRss::Xid,
-  timestamp : B4,
+  time : B4,
   machine_id : B3,
   process_id : B2,
   count : B3 do
@@ -52,7 +52,7 @@ record PodcastRss::Xid,
     ch = base32.to_unsafe
 
     Xid.new(
-      timestamp: B4[
+      time: B4[
         BASE32_DEC[ch[0]] << 3 | BASE32_DEC[ch[1]] >> 2,
         BASE32_DEC[ch[1]] << 6 | BASE32_DEC[ch[2]] << 1 | BASE32_DEC[ch[3]] >> 4,
         BASE32_DEC[ch[3]] << 4 | BASE32_DEC[ch[4]] >> 1,
@@ -79,7 +79,7 @@ record PodcastRss::Xid,
   #
   def self.from_bytes(bs : B12) : PodcastRss::Xid
     Xid.new(
-      timestamp: B4[bs[0], bs[1], bs[2], bs[3]],
+      time: B4[bs[0], bs[1], bs[2], bs[3]],
       machine_id: B3[bs[4], bs[5], bs[6]],
       process_id: B2[bs[7], bs[8]],
       count: B3[bs[9], bs[10], bs[11]]
@@ -90,7 +90,7 @@ record PodcastRss::Xid,
   #
   def as_bytes : Bytes
     Bytes.new(
-      pointerof(@timestamp).as(Pointer(UInt8)),
+      pointerof(@time).as(UInt8*),
       12,
       read_only: true
     )
@@ -125,11 +125,11 @@ record PodcastRss::Xid,
     end
   end
 
-  # get `time` of xid
+  # get `utc time` of xid
   #
   def time : Time
     Time.unix(
-      IO::ByteFormat::BigEndian.decode(UInt32, @timestamp.to_slice)
+      IO::ByteFormat::BigEndian.decode(UInt32, @time.to_slice)
     )
   end
 
@@ -137,7 +137,7 @@ record PodcastRss::Xid,
   #
   def machine_id : UInt32
     result = 0_u32
-    @machine_id.to_slice.copy_to(pointerof(result).as(Pointer(UInt8)) + 1, 3)
+    @machine_id.to_slice.copy_to(pointerof(result).as(UInt8*) + 1, 3)
     result
   end
 
@@ -151,7 +151,7 @@ record PodcastRss::Xid,
   #
   def count : UInt32
     result = 0_u32
-    @count.to_slice.copy_to(pointerof(result).as(Pointer(UInt8)) + 1, 3)
+    @count.to_slice.copy_to(pointerof(result).as(UInt8*) + 1, 3)
     result
   end
 
@@ -165,11 +165,14 @@ record PodcastRss::Xid,
   end
 end
 
+# Xid Generator
+#
 class PodcastRss::XidGenerator
-  class_getter instance : PodcastRss::XidGenerator = XidGenerator.new
+  class_getter global = XidGenerator.new
+
   # TODO: lazy
-  @@machine_id : B3 = get_machine_id
-  @@process_id : B2 = get_process_id
+  @@machine_id : B3 = load_machine_id
+  @@process_id : B2 = load_process_id
 
   @count : Atomic(UInt32)
 
@@ -179,14 +182,14 @@ class PodcastRss::XidGenerator
 
   def gen_id : PodcastRss::Xid
     Xid.new(
-      timestamp: get_timestamp,
+      time: read_time,
       machine_id: @@machine_id,
       process_id: @@process_id,
       count: next_count
     )
   end
 
-  private def get_timestamp : B4
+  private def read_time : B4
     ts = Time.utc.to_unix.to_u32
 
     UInt8.static_array(
@@ -197,24 +200,34 @@ class PodcastRss::XidGenerator
     )
   end
 
-  def self.get_machine_id : B3
+  private def next_count : B3
+    _count = @count.add 1
+
+    UInt8.static_array(
+      _count >> 16,
+      _count >> 8,
+      _count >> 0
+    )
+  end
+
+  def self.load_machine_id : B3
     {% if flag?(:linux) %}
       # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/machine_id.rs#L38
       #
       machine_id_paths = ["/var/lib/dbus/machine-id", "/etc/machine-id"]
       while true
         path = machine_id_paths.pop?
-        raise "Can not get machine id" unless path
+        raise "Can not load machine id" unless path
         begin
           s = File.read(path).strip
           break unless s.blank?
-          puts "WARN: Can not get machine id: the content of `#{path}` is blank, try next"
+          puts "XID: Can not load machine id: the content of `#{path}` is blank, try next"
         rescue _e : Exception
-          puts "WARN: Can not get machine id: read file `#{path}` failed, try next"
+          puts "XID: Can not load machine id: read file `#{path}` failed, try next"
         end
       end
 
-      puts "read machine_id: #{s}"
+      puts "XID: load machine id: #{s}"
 
       md5 = Digest::MD5.new
       md5 << s
@@ -222,18 +235,18 @@ class PodcastRss::XidGenerator
       UInt8.static_array(final[0], final[1], final[2])
     {% else %}
       # TODO
-      raise "Unimplemented on the platform"
+      raise "XID: Unimplemented on the platform"
     {% end %}
   end
 
-  def self.get_process_id : B2
+  def self.load_process_id : B2
     # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/pid.rs#L8
     #
     pid = Process.pid.to_u32
 
     begin
       s = File.read("/proc/self/cpuset").strip
-      puts "read pid: #{s}"
+      puts "XID: load pid: #{s}"
     rescue ex : Exception
     end
 
@@ -244,16 +257,6 @@ class PodcastRss::XidGenerator
     UInt8.static_array(
       pid >> 8,
       pid,
-    )
-  end
-
-  private def next_count : B3
-    _count = @count.add 1
-
-    UInt8.static_array(
-      _count >> 16,
-      _count >> 8,
-      _count >> 0
     )
   end
 end

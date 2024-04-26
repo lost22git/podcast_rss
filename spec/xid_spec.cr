@@ -2,7 +2,7 @@ require "./spec_helper"
 
 # describe PodcastRss::XidGenerator do
 #  it "gen_id" do
-#    id_gen = PodcastRss::XidGenerator.instance
+#    id_gen = PodcastRss::XidGenerator.global
 #
 #    ch = ::Channel(PodcastRss::Xid).new
 #
@@ -33,14 +33,14 @@ describe PodcastRss::Xid do
   end
 
   it "generator gen_id" do
-    xid = PodcastRss::XidGenerator.instance.gen_id
+    xid = PodcastRss::XidGenerator.global.gen_id
     xid.print
   end
 
   it "order?" do
     r = 50000.times.map do |_|
       # sleep 10.milliseconds
-      PodcastRss::XidGenerator.instance.gen_id.to_s
+      PodcastRss::XidGenerator.global.gen_id.to_s
     end
 
     max = "0"

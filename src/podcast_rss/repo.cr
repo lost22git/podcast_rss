@@ -10,7 +10,7 @@ module PodcastRss::Repo
   end
 
   private def self.gen_id : ID
-    XidGenerator.instance.gen_id.to_s
+    XidGenerator.global.gen_id.to_s
   end
 
   STATIC_INIT_SQL = {{ read_file("#{__DIR__}/../../init.sql") }}
