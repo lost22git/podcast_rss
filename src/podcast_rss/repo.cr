@@ -1,6 +1,6 @@
 require "db"
 require "duckdb"
-require "snowflake"
+require "./xid"
 
 module PodcastRss::Repo
   def self.connect(&)
@@ -9,10 +9,8 @@ module PodcastRss::Repo
     end
   end
 
-  ID_GENERATOR = Snowflake.new(1_u64)
-
   private def self.gen_id : ID
-    ID_GENERATOR.generate_id.to_s
+    XidGenerator.instance.gen_id.to_s
   end
 
   STATIC_INIT_SQL = {{ read_file("#{__DIR__}/../../init.sql") }}
@@ -217,6 +215,21 @@ module PodcastRss::Repo
       LIMIT ?
       "
       result = cnn.query_all(select_sql, channel_id, size) { |rs| ChannelItem.new rs }
+    end
+    result
+  end
+
+  def self.get_channel_item(channel_item_id : ID) : PodcastRss::ChannelItem?
+    result = nil
+    self.connect do |cnn|
+      select_sql = "
+      SELECT
+        id,channel_id,title,subtitle,description,pub_date,image,duration,url,type,length
+      FROM channel_item
+      WHERE
+        id = ?
+      "
+      result = cnn.query_one?(select_sql, channel_item_id) { |rs| ChannelItem.new rs }
     end
     result
   end
