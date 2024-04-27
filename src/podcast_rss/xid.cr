@@ -1,4 +1,4 @@
-# # A xid implementation for crystal
+# A xid implementation for crystal
 #
 # ## resources:
 #
@@ -125,9 +125,7 @@ record PodcastRss::Xid,
   # get `utc time` of xid
   #
   def time : Time
-    Time.unix(
-      IO::ByteFormat::BigEndian.decode(UInt32, @time.to_slice)
-    )
+    Time.unix IO::ByteFormat::BigEndian.decode(UInt32, @time.to_slice)
   end
 
   # get `machine id` of xid
@@ -251,9 +249,6 @@ class PodcastRss::XidGenerator
       pid = pid ^ Digest::CRC32.checksum(s).to_u32
     end
 
-    UInt8.static_array(
-      pid >> 8,
-      pid,
-    )
+    UInt8.static_array(pid >> 8, pid)
   end
 end
