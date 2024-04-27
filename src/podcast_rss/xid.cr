@@ -38,10 +38,7 @@ alias B2 = StaticArray(UInt8, 2)
 
 @[Packed]
 record PodcastRss::Xid,
-  time : B4,
-  machine_id : B3,
-  process_id : B2,
-  count : B3 do
+  time : B4, machine_id : B3, process_id : B2, count : B3 do
   # construct from base32 string
   #
   def self.from_s(base32 : String) : PodcastRss::Xid
