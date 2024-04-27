@@ -6,9 +6,9 @@
 # - https://github.com/kazk/xid-rs
 #
 
+require "digest/crc32"
 {% if flag?(:linux) %}
   require "digest/md5"
-  require "digest/crc32"
 {% end %}
 
 BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
