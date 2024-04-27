@@ -175,6 +175,7 @@ class PodcastRss::XidGenerator
     @count = Atomic(UInt32).new Random.new.rand(UInt32)
   end
 
+  @[AlwaysInline]
   def gen_id : PodcastRss::Xid
     Xid.new(
       time: read_time,
@@ -184,17 +185,22 @@ class PodcastRss::XidGenerator
     )
   end
 
+  @[AlwaysInline]
   private def read_time : B4
     ts = Time.utc.to_unix.to_u32
+    ts.unsafe_as(B4).reverse!
 
-    UInt8.static_array(
-      ts >> 24,
-      ts >> 16,
-      ts >> 8,
-      ts >> 0,
-    )
+    # same as this
+    #
+    # UInt8.static_array(
+    #  ts >> 24,
+    #  ts >> 16,
+    #  ts >> 8,
+    #  ts >> 0,
+    # )
   end
 
+  @[AlwaysInline]
   private def next_count : B3
     _count = @count.add 1
 

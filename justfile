@@ -11,16 +11,16 @@ check:
   ./bin/ameba.exe 
 
 test *spec_files:
-  crystal spec {{ spec_files }}
+  crystal spec --progress {{ spec_files }}
 
 build:
   shards build --release --no-debug --verbose --progress --time
 
 run:
-  shards run --error-trace
+  shards run --error-trace --progress 
 
 exec +exec_file:
-  crystal run --error-trace {{ exec_file }}
+  crystal run --error-trace --progress {{ exec_file }}
 
 bench +bench_file:
-  crystal run --release {{ bench_file }}
+  crystal run --release --progress {{ bench_file }}
