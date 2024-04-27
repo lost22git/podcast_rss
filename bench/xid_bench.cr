@@ -4,7 +4,7 @@ require "../src/podcast_rss/xid.cr"
 
 Benchmark.ips(warmup: 4, calculation: 10) do |x|
   x.report "xid generate" do
-    PodcastRss::XidGenerator.instance.gen_id
+    PodcastRss::XidGenerator.global.gen_id
   end
 
   x.report "uuid-v4 generate" do
