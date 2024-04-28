@@ -34,7 +34,7 @@ describe PodcastRss::Xid do
 
   it "generator gen_id" do
     xid = PodcastRss::XidGenerator.global.gen_id
-    xid.print
+    xid.debug
   end
 
   it "order?" do

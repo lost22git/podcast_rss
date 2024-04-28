@@ -6,9 +6,10 @@
 # - https://github.com/kazk/xid-rs
 #
 
-require "digest/crc32"
+require "digest/md5"
+
 {% if flag?(:linux) %}
-  require "digest/md5"
+  require "digest/crc32"
 {% end %}
 
 BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
@@ -16,6 +17,8 @@ BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
 BASE32_DEC = begin
   a = StaticArray(UInt8, 256).new 0
 
+  # '0' ~ '9'
+  #
   a[48] = 0; a[49] = 1; a[50] = 2; a[51] = 3; a[52] = 4
   a[53] = 5; a[54] = 6; a[55] = 7; a[56] = 8; a[57] = 9
 
@@ -36,6 +39,9 @@ alias B4 = StaticArray(UInt8, 4)
 alias B3 = StaticArray(UInt8, 3)
 alias B2 = StaticArray(UInt8, 2)
 
+class XidError < Exception
+end
+
 @[Packed]
 record PodcastRss::Xid,
   time : B4, machine_id : B3, process_id : B2, count : B3 do
@@ -44,7 +50,7 @@ record PodcastRss::Xid,
   def self.from_s(base32 : String) : PodcastRss::Xid
     base32 = base32.downcase
 
-    raise ArgumentError.new("not a valid base32 string") unless base32.matches_full? /[0-9a-v]{20}/
+    raise XidError.new("XID: not a valid base32 string") unless base32.matches_full? /[0-9a-v]{20}/
 
     ch = base32.to_unsafe
 
@@ -150,7 +156,7 @@ record PodcastRss::Xid,
     result
   end
 
-  def print
+  def debug
     puts "XID".ljust(15) + " : " + self.inspect
     puts "XID string".ljust(15) + " : " + self.to_s
     puts "XID time".ljust(15) + " : " + time().inspect
@@ -169,10 +175,10 @@ class PodcastRss::XidGenerator
   @@machine_id : B3 = load_machine_id
   @@process_id : B2 = load_process_id
 
-  @count : Atomic(UInt32)
+  @counter : Atomic(UInt32)
 
   def initialize
-    @count = Atomic(UInt32).new Random.new.rand(UInt32)
+    @counter = Atomic(UInt32).new Random.new.rand(UInt32)
   end
 
   @[AlwaysInline]
@@ -202,42 +208,25 @@ class PodcastRss::XidGenerator
 
   @[AlwaysInline]
   private def next_count : B3
-    _count = @count.add 1
+    count = @counter.add 1
 
     UInt8.static_array(
-      _count >> 16,
-      _count >> 8,
-      _count >> 0
+      count >> 16,
+      count >> 8,
+      count >> 0
     )
   end
 
   def self.load_machine_id : B3
-    {% if flag?(:linux) %}
-      # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/machine_id.rs#L38
-      #
-      machine_id_paths = ["/var/lib/dbus/machine-id", "/etc/machine-id"]
-      while true
-        path = machine_id_paths.pop?
-        raise "Can not load machine id" unless path
-        begin
-          s = File.read(path).strip
-          break unless s.blank?
-          puts "XID: Can not load machine id: the content of `#{path}` is blank, try next"
-        rescue _e : Exception
-          puts "XID: Can not load machine id: read file `#{path}` failed, try next"
-        end
-      end
-
-      puts "XID: load machine id: #{s}"
-
-      md5 = Digest::MD5.new
-      md5 << s
-      final = md5.final
-      UInt8.static_array(final[0], final[1], final[2])
-    {% else %}
-      # TODO
-      raise "XID: Unimplemented on the platform"
-    {% end %}
+    machine_id = {% if flag?(:linux) %}
+                   load_machine_id_on_linux
+                 {% else %}
+                   raise XidError.new("XID: unimplemented on the platform")
+                 {% end %}
+    md5 = Digest::MD5.new
+    md5 << machine_id
+    final = md5.final
+    UInt8.static_array(final[0], final[1], final[2])
   end
 
   def self.load_process_id : B2
@@ -245,16 +234,39 @@ class PodcastRss::XidGenerator
     #
     pid = Process.pid.to_u32
 
-    begin
-      s = File.read("/proc/self/cpuset").strip
-      puts "XID: load pid: #{s}"
-    rescue ex : Exception
-    end
+    {% if flag?(:linux) %}
+      begin
+        s = File.read("/proc/self/cpuset").strip
+        puts "XID: read `/proc/self/cpuset`: #{s}"
+      rescue ex : Exception
+      end
 
-    if s && !s.blank?
-      pid = pid ^ Digest::CRC32.checksum(s).to_u32
-    end
+      if s && !s.blank?
+        pid ^= Digest::CRC32.checksum(s).to_u32
+      end
+    {% end %}
+
+    puts "XID: load process id: #{pid}"
 
     UInt8.static_array(pid >> 8, pid)
+  end
+
+  def self.load_machine_id_on_linux : Bytes
+    # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/machine_id.rs#L38
+    #
+    try_paths = ["/var/lib/dbus/machine-id", "/etc/machine-id"]
+    try_paths.each do |path|
+      begin
+        s = File.read(path).strip
+        if s != ""
+          puts "XID: load machine id: #{s}"
+          return s.to_slice
+        end
+        puts "XID: failed to load machine id, read `#{path}` is blank, trying next path"
+      rescue ex : Exception
+        puts "XID: failed to load machine id, read `#{path}` failed, trying next path"
+      end
+    end
+    raise XidError.new("XID: failed to load machine id")
   end
 end
