@@ -37,16 +37,26 @@ describe PodcastRss::Xid do
     xid.debug
   end
 
-  it "order?" do
-    r = 50000.times.map do |_|
-      # sleep 10.milliseconds
+  # NOTE: would be disordered in a second when counter overflow 3bytes
+  #
+  it "ordered!" do
+    r = 1_000_000.times.map do |_|
       PodcastRss::XidGenerator.global.gen_id.to_s
     end
 
-    max = "0"
+    prev = ""
+    curr = ""
     r.each do |it|
-      raise "disordered" unless it <=> max > 0
-      max = it
+      curr = it
+      if curr > prev
+        prev = curr
+      else
+        puts "-" * 66
+        PodcastRss::Xid.from_s(prev).debug
+        puts "-" * 66
+        PodcastRss::Xid.from_s(curr).debug
+        raise "disordered!"
+      end
     end
   end
 end
