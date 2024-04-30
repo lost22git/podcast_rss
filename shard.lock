@@ -24,3 +24,7 @@ shards:
     git: https://github.com/crystal-community/future.cr.git
     version: 1.0.0
 
+  xid:
+    git: https://github.com/lost22git/xid.cr.git
+    version: 0.1.0+git.commit.20daf4f76b451e5322c14fd7f290106bd8cb94e1
+

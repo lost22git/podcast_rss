@@ -1,6 +1,6 @@
 require "db"
 require "duckdb"
-require "./xid"
+require "xid"
 
 module PodcastRss::Repo
   def self.connect(&)
