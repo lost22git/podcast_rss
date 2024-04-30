@@ -53,12 +53,6 @@ record PodcastRss::Xid,
     )
   end
 
-  # as **read-only** view `Bytes`
-  #
-  def as_bytes : Bytes
-    Bytes.new pointerof(@time).as(UInt8*), 12, read_only: true
-  end
-
   def self.from_s(base32 : String) : PodcastRss::Xid
     base32 = base32.downcase
     raise XidError.new("XID: not a valid base32 string") unless base32.matches_full? /[0-9a-v]{20}/
@@ -66,9 +60,14 @@ record PodcastRss::Xid,
     base32_decode(raw).unsafe_as Xid
   end
 
+  # as **read-only** view `Bytes`
+  #
+  def as_bytes : Bytes
+    Bytes.new pointerof(@time).as(UInt8*), 12, read_only: true
+  end
+
   def to_s : String
-    id = self.as_bytes
-    base32_encode self.as_bytes
+    base32_encode as_bytes
   end
 
   def time : Time

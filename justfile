@@ -8,7 +8,19 @@ clean:
 
 [windows]
 check:
-  ./bin/ameba.exe 
+  ./bin/ameba.exe
+
+[unix]
+check:
+  ./bin/ameba
+
+[windows]
+genAmebaFile:
+  ./bin/ameba.exe --gen-config
+
+[unix]
+genAmebaFile:
+  ./bin/ameba --gen-config
 
 test *spec_files:
   crystal spec --progress {{ spec_files }}
