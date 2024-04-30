@@ -12,8 +12,94 @@ require "digest/md5"
   require "digest/crc32"
 {% end %}
 
-BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
+alias B12 = StaticArray(UInt8, 12)
+alias B4 = StaticArray(UInt8, 4)
+alias B3 = StaticArray(UInt8, 3)
+alias B2 = StaticArray(UInt8, 2)
 
+class XidError < Exception
+end
+
+@[Packed]
+record PodcastRss::Xid,
+  time : B4, machine_id : B3, process_id : B2, count : B3 do
+  @@machine_id : B3 = load_machine_id
+  @@process_id : B2 = load_process_id
+  @@counter : Atomic(UInt32) = Atomic(UInt32).new Random.new.rand(UInt32)
+
+  def self.generate : Xid
+    Xid.new time: read_time, machine_id: @@machine_id, process_id: @@process_id, count: next_count
+  end
+
+  @[AlwaysInline]
+  private def self.read_time : B4
+    ts = Time.utc.to_unix.to_u32
+    ts.unsafe_as(B4).reverse!
+  end
+
+  @[AlwaysInline]
+  private def self.next_count : B3
+    v = @@counter.add 1
+    UInt8.static_array v >> 16, v >> 8, v >> 0
+  end
+
+  @[AlwaysInline]
+  def self.from_bytes(raw : B12) : PodcastRss::Xid
+    Xid.new(
+      time: B4[raw[0], raw[1], raw[2], raw[3]],
+      machine_id: B3[raw[4], raw[5], raw[6]],
+      process_id: B2[raw[7], raw[8]],
+      count: B3[raw[9], raw[10], raw[11]]
+    )
+  end
+
+  # as **read-only** view `Bytes`
+  #
+  def as_bytes : Bytes
+    Bytes.new pointerof(@time).as(UInt8*), 12, read_only: true
+  end
+
+  def self.from_s(base32 : String) : PodcastRss::Xid
+    base32 = base32.downcase
+    raise XidError.new("XID: not a valid base32 string") unless base32.matches_full? /[0-9a-v]{20}/
+    raw = base32.to_slice
+    base32_decode(raw).unsafe_as Xid
+  end
+
+  def to_s : String
+    id = self.as_bytes
+    base32_encode self.as_bytes
+  end
+
+  def time : Time
+    Time.unix IO::ByteFormat::BigEndian.decode(UInt32, @time.to_slice)
+  end
+
+  def machine_id : UInt32
+    v = @machine_id
+    v[0].to_u32 << 16 | v[1].to_u32 << 8 | v[2].to_u32
+  end
+
+  def process_id : UInt16
+    IO::ByteFormat::BigEndian.decode(UInt16, @process_id.to_slice)
+  end
+
+  def count : UInt32
+    v = @count
+    v[0].to_u32 << 16 | v[1].to_u32 << 8 | v[2].to_u32
+  end
+
+  def debug
+    puts "XID".ljust(15) + " : " + self.inspect
+    puts "XID string".ljust(15) + " : " + self.to_s
+    puts "XID time".ljust(15) + " : " + time().inspect
+    puts "XID machine_id".ljust(15) + " : " + machine_id().inspect
+    puts "XID process_id".ljust(15) + " : " + process_id().inspect
+    puts "XID count".ljust(15) + " : " + count().inspect
+  end
+end
+
+BASE32_ENC = "0123456789abcdefghijklmnopqrstuv"
 BASE32_DEC = begin
   a = StaticArray(UInt8, 256).new 0
 
@@ -34,239 +120,103 @@ BASE32_DEC = begin
   a
 end
 
-alias B12 = StaticArray(UInt8, 12)
-alias B4 = StaticArray(UInt8, 4)
-alias B3 = StaticArray(UInt8, 3)
-alias B2 = StaticArray(UInt8, 2)
-
-class XidError < Exception
-end
-
-@[Packed]
-record PodcastRss::Xid,
-  time : B4, machine_id : B3, process_id : B2, count : B3 do
-  # construct from base32 string
-  #
-  def self.from_s(base32 : String) : PodcastRss::Xid
-    base32 = base32.downcase
-
-    raise XidError.new("XID: not a valid base32 string") unless base32.matches_full? /[0-9a-v]{20}/
-
-    ch = base32.to_unsafe
-
-    Xid.new(
-      time: B4[
-        BASE32_DEC[ch[0]] << 3 | BASE32_DEC[ch[1]] >> 2,
-        BASE32_DEC[ch[1]] << 6 | BASE32_DEC[ch[2]] << 1 | BASE32_DEC[ch[3]] >> 4,
-        BASE32_DEC[ch[3]] << 4 | BASE32_DEC[ch[4]] >> 1,
-        BASE32_DEC[ch[4]] << 7 | BASE32_DEC[ch[5]] << 2 | BASE32_DEC[ch[6]] >> 3,
-      ],
-      machine_id: B3[
-        BASE32_DEC[ch[6]] << 5 | BASE32_DEC[ch[7]],
-        BASE32_DEC[ch[8]] << 3 | BASE32_DEC[ch[9]] >> 2,
-        BASE32_DEC[ch[9]] << 6 | BASE32_DEC[ch[10]] << 1 | BASE32_DEC[ch[11]] >> 4,
-      ],
-      process_id: B2[
-        BASE32_DEC[ch[11]] << 4 | BASE32_DEC[ch[12]] >> 1,
-        BASE32_DEC[ch[12]] << 7 | BASE32_DEC[ch[13]] << 2 | BASE32_DEC[ch[14]] >> 3,
-      ],
-      count: B3[
-        BASE32_DEC[ch[14]] << 5 | BASE32_DEC[ch[15]],
-        BASE32_DEC[ch[16]] << 3 | BASE32_DEC[ch[17]] >> 2,
-        BASE32_DEC[ch[17]] << 6 | BASE32_DEC[ch[18]] << 1 | BASE32_DEC[ch[19]] >> 4,
-      ]
-    )
-  end
-
-  # construct from bytes
-  #
-  def self.from_bytes(bs : B12) : PodcastRss::Xid
-    Xid.new(
-      time: B4[bs[0], bs[1], bs[2], bs[3]],
-      machine_id: B3[bs[4], bs[5], bs[6]],
-      process_id: B2[bs[7], bs[8]],
-      count: B3[bs[9], bs[10], bs[11]]
-    )
-  end
-
-  # as **read-only** view `Bytes`
-  #
-  def as_bytes : Bytes
-    Bytes.new(
-      pointerof(@time).as(UInt8*),
-      12,
-      read_only: true
-    )
-  end
-
-  # to base32 string
-  #
-  def to_s : String
-    id = self.as_bytes
-
-    String.build 20 do |io|
-      io << BASE32_ENC[(id[0] >> 3).to_u32]
-      io << BASE32_ENC[((id[1] >> 6) & 0x1F | (id[0] << 2) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[1] >> 1) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[2] >> 4) & 0x1F | (id[1] << 4) & 0x1F).to_u32]
-      io << BASE32_ENC[(id[3] >> 7 | (id[2] << 1) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[3] >> 2) & 0x1F).to_u32]
-      io << BASE32_ENC[(id[4] >> 5 | (id[3] << 3) & 0x1F).to_u32]
-      io << BASE32_ENC[(id[4] & 0x1F).to_u32]
-      io << BASE32_ENC[(id[5] >> 3).to_u32]
-      io << BASE32_ENC[((id[6] >> 6) & 0x1F | (id[5] << 2) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[6] >> 1) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[7] >> 4) & 0x1F | (id[6] << 4) & 0x1F).to_u32]
-      io << BASE32_ENC[(id[8] >> 7 | (id[7] << 1) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[8] >> 2) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[9] >> 5) | (id[8] << 3) & 0x1F).to_u32]
-      io << BASE32_ENC[(id[9] & 0x1F).to_u32]
-      io << BASE32_ENC[(id[10] >> 3).to_u32]
-      io << BASE32_ENC[((id[11] >> 6) & 0x1F | (id[10] << 2) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[11] >> 1) & 0x1F).to_u32]
-      io << BASE32_ENC[((id[11] << 4) & 0x1F).to_u32]
-    end
-  end
-
-  # get `utc time` of xid
-  #
-  def time : Time
-    Time.unix IO::ByteFormat::BigEndian.decode(UInt32, @time.to_slice)
-  end
-
-  # get `machine id` of xid
-  #
-  def machine_id : UInt32
-    result = 0_u32
-    @machine_id.to_slice.copy_to(pointerof(result).as(UInt8*) + 1, 3)
-    result
-  end
-
-  # get `process id` of xid
-  #
-  def process_id : UInt16
-    IO::ByteFormat::BigEndian.decode(UInt16, @process_id.to_slice)
-  end
-
-  # get `count` of xid
-  #
-  def count : UInt32
-    result = 0_u32
-    @count.to_slice.copy_to(pointerof(result).as(UInt8*) + 1, 3)
-    result
-  end
-
-  def debug
-    puts "XID".ljust(15) + " : " + self.inspect
-    puts "XID string".ljust(15) + " : " + self.to_s
-    puts "XID time".ljust(15) + " : " + time().inspect
-    puts "XID machine_id".ljust(15) + " : " + machine_id().inspect
-    puts "XID process_id".ljust(15) + " : " + process_id().inspect
-    puts "XID count".ljust(15) + " : " + count().inspect
+@[AlwaysInline]
+private def base32_encode(raw : Bytes) : String
+  String.build 20 do |io|
+    io << BASE32_ENC[raw[0] >> 3]
+    io << BASE32_ENC[(raw[1] >> 6) & 0x1F | (raw[0] << 2) & 0x1F]
+    io << BASE32_ENC[(raw[1] >> 1) & 0x1F]
+    io << BASE32_ENC[(raw[2] >> 4) & 0x1F | (raw[1] << 4) & 0x1F]
+    io << BASE32_ENC[raw[3] >> 7 | (raw[2] << 1) & 0x1F]
+    io << BASE32_ENC[(raw[3] >> 2) & 0x1F]
+    io << BASE32_ENC[raw[4] >> 5 | (raw[3] << 3) & 0x1F]
+    io << BASE32_ENC[raw[4] & 0x1F]
+    io << BASE32_ENC[raw[5] >> 3]
+    io << BASE32_ENC[(raw[6] >> 6) & 0x1F | (raw[5] << 2) & 0x1F]
+    io << BASE32_ENC[(raw[6] >> 1) & 0x1F]
+    io << BASE32_ENC[(raw[7] >> 4) & 0x1F | (raw[6] << 4) & 0x1F]
+    io << BASE32_ENC[raw[8] >> 7 | (raw[7] << 1) & 0x1F]
+    io << BASE32_ENC[(raw[8] >> 2) & 0x1F]
+    io << BASE32_ENC[(raw[9] >> 5) | (raw[8] << 3) & 0x1F]
+    io << BASE32_ENC[raw[9] & 0x1F]
+    io << BASE32_ENC[raw[10] >> 3]
+    io << BASE32_ENC[(raw[11] >> 6) & 0x1F | (raw[10] << 2) & 0x1F]
+    io << BASE32_ENC[(raw[11] >> 1) & 0x1F]
+    io << BASE32_ENC[(raw[11] << 4) & 0x1F]
   end
 end
 
-# Xid Generator
-#
-class PodcastRss::XidGenerator
-  class_getter global = XidGenerator.new
+@[AlwaysInline]
+private def base32_decode(ch : Bytes) : B12
+  UInt8.static_array(
+    BASE32_DEC[ch[0]] << 3 | BASE32_DEC[ch[1]] >> 2,
+    BASE32_DEC[ch[1]] << 6 | BASE32_DEC[ch[2]] << 1 | BASE32_DEC[ch[3]] >> 4,
+    BASE32_DEC[ch[3]] << 4 | BASE32_DEC[ch[4]] >> 1,
+    BASE32_DEC[ch[4]] << 7 | BASE32_DEC[ch[5]] << 2 | BASE32_DEC[ch[6]] >> 3,
+    BASE32_DEC[ch[6]] << 5 | BASE32_DEC[ch[7]],
+    BASE32_DEC[ch[8]] << 3 | BASE32_DEC[ch[9]] >> 2,
+    BASE32_DEC[ch[9]] << 6 | BASE32_DEC[ch[10]] << 1 | BASE32_DEC[ch[11]] >> 4,
+    BASE32_DEC[ch[11]] << 4 | BASE32_DEC[ch[12]] >> 1,
+    BASE32_DEC[ch[12]] << 7 | BASE32_DEC[ch[13]] << 2 | BASE32_DEC[ch[14]] >> 3,
+    BASE32_DEC[ch[14]] << 5 | BASE32_DEC[ch[15]],
+    BASE32_DEC[ch[16]] << 3 | BASE32_DEC[ch[17]] >> 2,
+    BASE32_DEC[ch[17]] << 6 | BASE32_DEC[ch[18]] << 1 | BASE32_DEC[ch[19]] >> 4,
+  )
+end
 
-  # TODO: lazy
-  @@machine_id : B3 = load_machine_id
-  @@process_id : B2 = load_process_id
+private def load_machine_id : B3
+  machine_id = {% if flag?(:linux) %}
+                 load_machine_id_on_linux
+               {% else %}
+                 raise XidError.new("XID: unimplemented on the platform")
+               {% end %}
+  sum = md5sum machine_id
+  UInt8.static_array(sum[0], sum[1], sum[2])
+end
 
-  @counter : Atomic(UInt32)
+private def md5sum(input : Bytes) : Bytes
+  md5 = Digest::MD5.new
+  md5 << input
+  md5.final
+end
 
-  def initialize
-    @counter = Atomic(UInt32).new Random.new.rand(UInt32)
-  end
-
-  @[AlwaysInline]
-  def gen_id : PodcastRss::Xid
-    Xid.new(
-      time: read_time,
-      machine_id: @@machine_id,
-      process_id: @@process_id,
-      count: next_count
-    )
-  end
-
-  @[AlwaysInline]
-  private def read_time : B4
-    ts = Time.utc.to_unix.to_u32
-    ts.unsafe_as(B4).reverse!
-
-    # same as this
-    #
-    # UInt8.static_array(
-    #  ts >> 24,
-    #  ts >> 16,
-    #  ts >> 8,
-    #  ts >> 0,
-    # )
-  end
-
-  @[AlwaysInline]
-  private def next_count : B3
-    count = @counter.add 1
-
-    UInt8.static_array(
-      count >> 16,
-      count >> 8,
-      count >> 0
-    )
-  end
-
-  def self.load_machine_id : B3
-    machine_id = {% if flag?(:linux) %}
-                   load_machine_id_on_linux
-                 {% else %}
-                   raise XidError.new("XID: unimplemented on the platform")
-                 {% end %}
-    md5 = Digest::MD5.new
-    md5 << machine_id
-    final = md5.final
-    UInt8.static_array(final[0], final[1], final[2])
-  end
-
-  def self.load_process_id : B2
-    # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/pid.rs#L8
-    #
-    pid = Process.pid.to_u32
-
-    {% if flag?(:linux) %}
-      begin
-        s = File.read("/proc/self/cpuset").strip
-        puts "XID: read `/proc/self/cpuset`: #{s}"
-      rescue ex : Exception
+private def load_machine_id_on_linux : Bytes
+  # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/machine_id.rs#L38
+  #
+  try_paths = ["/var/lib/dbus/machine-id", "/etc/machine-id"]
+  try_paths.each do |path|
+    begin
+      s = File.read(path).strip
+      if s != ""
+        puts "XID: load machine id: #{s}"
+        return s.to_slice
       end
-
-      if s && !s.blank?
-        pid ^= Digest::CRC32.checksum(s).to_u32
-      end
-    {% end %}
-
-    puts "XID: load process id: #{pid}"
-
-    UInt8.static_array(pid >> 8, pid)
-  end
-
-  def self.load_machine_id_on_linux : Bytes
-    # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/machine_id.rs#L38
-    #
-    try_paths = ["/var/lib/dbus/machine-id", "/etc/machine-id"]
-    try_paths.each do |path|
-      begin
-        s = File.read(path).strip
-        if s != ""
-          puts "XID: load machine id: #{s}"
-          return s.to_slice
-        end
-        puts "XID: failed to load machine id, read `#{path}` is blank, trying next path"
-      rescue ex : Exception
-        puts "XID: failed to load machine id, read `#{path}` failed, trying next path"
-      end
+      puts "XID: failed to load machine id, read `#{path}` is blank, trying next path"
+    rescue ex : Exception
+      puts "XID: failed to load machine id, read `#{path}` failed, trying next path"
     end
-    raise XidError.new("XID: failed to load machine id")
   end
+  raise XidError.new("XID: failed to load machine id")
+end
+
+private def load_process_id : B2
+  # https://github.com/kazk/xid-rs/blob/9d1fd22d281c379362888bf729a927509f2d8ffc/src/pid.rs#L8
+  #
+  pid = Process.pid.to_u32
+
+  {% if flag?(:linux) %}
+    begin
+      s = File.read("/proc/self/cpuset").strip
+      puts "XID: read `/proc/self/cpuset`: #{s}"
+    rescue ex : Exception
+    end
+
+    if s && !s.blank?
+      pid ^= Digest::CRC32.checksum(s).to_u32
+    end
+  {% end %}
+
+  puts "XID: load process id: #{pid}"
+
+  UInt8.static_array(pid >> 8, pid)
 end

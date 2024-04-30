@@ -1,23 +1,5 @@
 require "./spec_helper"
 
-# describe PodcastRss::XidGenerator do
-#  it "gen_id" do
-#    id_gen = PodcastRss::XidGenerator.global
-#
-#    ch = ::Channel(PodcastRss::Xid).new
-#
-#    20.times.each do |i|
-#      spawn do
-#        ch.send id_gen.gen_id
-#      end
-#    end
-#
-#    20.times.each do |i|
-#      p! ch.receive
-#    end
-#  end
-# end
-
 describe PodcastRss::Xid do
   it "from_s and to_s" do
     s = "9m4e2mr0ui3e8a215n4g"
@@ -32,8 +14,8 @@ describe PodcastRss::Xid do
     xid.to_s.should eq "9m4e2mr0ui3e8a215n4g"
   end
 
-  it "generator gen_id" do
-    xid = PodcastRss::XidGenerator.global.gen_id
+  it "generate" do
+    xid = PodcastRss::Xid.generate
     xid.debug
   end
 
@@ -41,7 +23,7 @@ describe PodcastRss::Xid do
   #
   it "ordered!" do
     r = 1_000_000.times.map do |_|
-      PodcastRss::XidGenerator.global.gen_id.to_s
+      PodcastRss::Xid.generate.to_s
     end
 
     prev = ""
