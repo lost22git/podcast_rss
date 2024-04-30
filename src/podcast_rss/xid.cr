@@ -20,7 +20,6 @@ alias B2 = StaticArray(UInt8, 2)
 class XidError < Exception
 end
 
-@[Packed]
 record PodcastRss::Xid,
   time : B4, machine_id : B3, process_id : B2, count : B3 do
   @@machine_id : B3 = load_machine_id
