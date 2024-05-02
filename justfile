@@ -7,32 +7,27 @@ clean:
   crystal clear_cache
 
 [windows]
-check:
-  ./bin/ameba.exe
+check *flags:
+  ./bin/ameba.exe {{ flags }}
 
 [unix]
-check:
-  ./bin/ameba
+check *flags:
+  ./bin/ameba {{ flags }}
 
-[windows]
-genAmebaFile:
-  ./bin/ameba.exe --gen-config
-
-[unix]
-genAmebaFile:
-  ./bin/ameba --gen-config
+docs *flags:
+  crystal docs {{ flags }}
 
 test *spec_files:
   crystal spec --progress {{ spec_files }}
 
-build:
-  shards build --release --no-debug --verbose --progress --time
+build *flags:
+  shards build --release --no-debug --verbose --progress --time {{ flags }}
 
-run:
-  shards run --error-trace --progress 
+run *flags:
+  shards run --error-trace --progress {{ flags }}
 
-exec +exec_file:
-  crystal run --error-trace --progress {{ exec_file }}
+exec exec_file *flags:
+  crystal run --error-trace --progress {{ flags }} {{ exec_file }}
 
-bench +bench_file:
-  crystal run --release --progress {{ bench_file }}
+bench bench_file *flags:
+  crystal run --release --progress {{ flags }} {{ bench_file }}
