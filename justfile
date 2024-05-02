@@ -21,7 +21,7 @@ test *spec_files:
   crystal spec --progress {{ spec_files }}
 
 build *flags:
-  shards build --release --no-debug --verbose --progress --time {{ flags }}
+  shards build --production --release --no-debug --verbose --progress --time {{ flags }}
 
 run *flags:
   shards run --error-trace --progress {{ flags }}
