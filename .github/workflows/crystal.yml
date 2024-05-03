@@ -15,7 +15,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Install dependencies
-        run: shards install
+        run: shards install --skip-postinstall --skip-executables
       - name: Check format
         run: crystal tool format --check
 
@@ -37,7 +37,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: Install dependencies
-        run: shards install
+        run: shards install --skip-postinstall --skip-executables
       - name: Install libduckdb
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
